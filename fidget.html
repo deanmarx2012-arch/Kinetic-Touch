@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purple Magnetic Grid</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    touch-action: none;
+    background: #0d001a;
+    position: relative;
+  }
+  canvas {
+    display: block;
+  }
+  #credit {
+    position: fixed;
+    bottom: 15px;
+    width: 100%;
+    text-align: center;
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: 18px;
+    color: rgba(210,180,255,0.8); /* light purple */
+    pointer-events: none;
+    z-index: 10;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="grid"></canvas>
+<div id="credit">made by dean</div>
+
+<script>
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+
+const gridSize = 40;        
+const influenceRadius = 180; 
+const maxOffset = 35;      
+
+let touch = { x: width/2, y: height/2, active: false };
+let glowOpacity = 0;        
+let targetGlow = 0;
+
+window.addEventListener('pointerdown', (e) => {
+    touch.active = true;
+    touch.x = e.clientX;
+    touch.y = e.clientY;
+    targetGlow = 0.25; 
+});
+window.addEventListener('pointermove', (e) => {
+    if (touch.active) {
+        touch.x = e.clientX;
+        touch.y = e.clientY;
+    }
+});
+window.addEventListener('pointerup', () => {
+    touch.active = false;
+    targetGlow = 0; 
+});
+
+function drawGrid() {
+    ctx.clearRect(0, 0, width, height);
+
+    // smooth fade in/out of glow
+    glowOpacity += (targetGlow - glowOpacity) * 0.05;
+
+    // helper function to calculate magnetic offset
+    function getOffset(x, y) {
+        if (!touch.active) return {dx:0, dy:0};
+        let dx = touch.x - x;
+        let dy = touch.y - y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 0.001) dist = 0.001; // prevent divide by zero
+        if(dist > influenceRadius) return {dx:0, dy:0};
+        let factor = (1 - dist / influenceRadius) * maxOffset;
+        return {dx: dx / dist * factor, dy: dy / dist * factor};
+    }
+
+    // horizontal lines
+    for (let y = 0; y <= height; y += gridSize) {
+        ctx.beginPath();
+        for (let x = 0; x <= width; x += 2) {
+            let {dx, dy} = getOffset(x, y);
+            ctx.lineTo(x + dx, y + dy);
+        }
+        ctx.strokeStyle = 'rgba(160,80,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // vertical lines
+    for (let x = 0; x <= width; x += gridSize) {
+        ctx.beginPath();
+        for (let y = 0; y <= height; y += 2) {
+            let {dx, dy} = getOffset(x, y);
+            ctx.lineTo(x + dx, y + dy);
+        }
+        ctx.strokeStyle = 'rgba(160,80,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // glowing highlight under finger
+    if (glowOpacity > 0) {
+        const gradient = ctx.createRadialGradient(touch.x, touch.y, 0, touch.x, touch.y, influenceRadius/2);
+        gradient.addColorStop(0, `rgba(200,128,255,${glowOpacity})`);
+        gradient.addColorStop(1, `rgba(200,128,255,0)`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(touch.x, touch.y, influenceRadius/2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    requestAnimationFrame(drawGrid);
+}
+
+drawGrid();
+
+window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+});
+</script>
+</body>
+</html>
